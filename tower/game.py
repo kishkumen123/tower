@@ -1,15 +1,14 @@
-from flask import Blueprint, request, Response, g
+from flask import Blueprint, request, Response, g, current_app
 import sqlite3
 import json
 
-game_blueprint = Blueprint("game", __name__)
+bp = Blueprint("game", __name__)
 
-DATABASE = "database.db"
 
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE, isolation_level=None)
+        db = g._database = sqlite3.connect(current_app.config["DATABASE"])
     return db
 
 def get_src_pos(board, src_col_index):
@@ -49,12 +48,12 @@ def perform_move(data, src_col_index, dst_col_index, increment):
         return True
     return False
 
-def check_solved(data):
+def check_solved(data, position):
     for i, row in enumerate(data["board"]):
-        if row[2] != (i + 1):
-            return False, 400
+        if row[position] != (i + 1):
+            return False
 
-    return True, 200
+    return True
 
 def get_selection(cursor, _id):
     selection = {"error": None, "selection": None}
@@ -66,15 +65,15 @@ def get_selection(cursor, _id):
 
     selection["selection"] = cursor.fetchone()
     if selection["selection"] is None:
-        selection["error"] = ("id: %s doesnt exist" % _id)
+        selection["error"] = ("id: %s does not exist" % _id)
         return selection
     return selection
 
 def app_response(res, status):
     return Response(response=json.dumps(res), status=status, content_type="application/json")
 
-def get_default_board_state():
-    data = {"id": None,
+def get_default_board_state(_id=None):
+    data = {"id": _id,
             "solved": False,
             "move_buffer": {"src": [], "dst": []},
             "move_buffer_size": 0,
@@ -101,9 +100,10 @@ def valid_data(_id, src, dst):
     return True
 
 # creates a new game
-@game_blueprint.route("/new", methods=["GET"])
+@bp.route("/new", methods=["GET"])
 def game_new():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     cursor.execute("create table if not exists game (id integer primary key autoincrement, data json)")
     default_board_state = get_default_board_state()
@@ -114,15 +114,16 @@ def game_new():
         return app_response(res, 400)
 
     default_board_state["id"] = cursor.lastrowid
-
+    db.commit()
     cursor.close()
     return app_response(default_board_state, 200)
 
 
 # resets an existing game
-@game_blueprint.route("/reset", methods=["PATCH"])
+@bp.route("/reset", methods=["PATCH"])
 def game_reset():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     _id = request.args.get("id", default=None, type=int)
     if _id is None:
@@ -136,17 +137,19 @@ def game_reset():
 
     selection = result["selection"]
     selection_data = json.loads(selection[1])
-    selection_data = get_default_board_state()
+    selection_data = get_default_board_state(selection[0])
 
     cursor.execute("update game set data = ? where id == ?", (json.dumps(selection_data), str(_id)))
+    db.commit()
     cursor.close()
     return app_response(selection_data, 200)
 
 
 # returns the state of an existing game
-@game_blueprint.route("/state", methods=["GET"])
+@bp.route("/state", methods=["GET"])
 def game_state():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
     _id = request.args.get("id", default=None, type=int)
     if _id is None:
         res = {"error": "must have parameter id with integer value"}
@@ -166,9 +169,10 @@ def game_state():
 
 
 # deletes an existing game
-@game_blueprint.route("/delete", methods=["DELETE"])
+@bp.route("/delete", methods=["DELETE"])
 def game_delete():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
     _id = request.args.get("id", default=None, type=int)
     if _id is None:
         res = {"error": "must have parameter id with integer value"}
@@ -180,14 +184,16 @@ def game_delete():
         res = {"error": e.args[0]}
         return app_response(res, 400)
 
+    db.commit()
     cursor.close()
     return app_response({}, 200)
 
 
 # deletes all games
-@game_blueprint.route("/delete_all", methods=["DELETE"])
+@bp.route("/delete_all", methods=["DELETE"])
 def game_delete_all():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     try:
         cursor.execute("delete from game")
@@ -197,14 +203,16 @@ def game_delete_all():
         res = {"error": e.args[0]}
         return app_response(res, 400)
 
+    db.commit()
     cursor.close()
     return app_response({}, 200)
 
 
 # performs a valid move
-@game_blueprint.route("/move", methods=["PATCH"])
+@bp.route("/move", methods=["PATCH"])
 def game_move():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     if not request.is_json:
         res = {"error": "Expecting json body {'id': int, 'src': int, 'dst': int}"}
@@ -228,7 +236,7 @@ def game_move():
     selection_data["id"] = selection[0]
     selection_data["move_buffer"]["src"].append(src)
     selection_data["move_buffer"]["dst"].append(dst)
-    if check_solved(selection_data):
+    if check_solved(selection_data, 1) or check_solved(selection_data, 2):
         selection_data["solved"] = True
 
     result = perform_move(selection_data, src, dst, 1)
@@ -238,14 +246,16 @@ def game_move():
         return app_response(res, 400)
 
     cursor.execute("update game set data = ? where id == ?", (json.dumps(selection_data), str(_id)))
+    db.commit()
     cursor.close()
     return app_response(selection_data, 200)
 
 
 # undos a move stored in the move_buffer
-@game_blueprint.route("/undo", methods=["PATCH"])
+@bp.route("/undo", methods=["PATCH"])
 def game_undo():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     _id = request.args.get("id", default=None, type=int)
     if _id is None:
@@ -267,14 +277,16 @@ def game_undo():
     undo(selection_data)
 
     cursor.execute("update game set data = ? where id == ?", (json.dumps(selection_data), str(_id)))
+    db.commit()
     cursor.close()
     return app_response(selection_data, 200)
 
 
 # checks if an existing game is solved
-@game_blueprint.route("/solved", methods=["GET"])
+@bp.route("/solved", methods=["GET"])
 def game_solved():
-    cursor = get_db().cursor()
+    db = get_db()
+    cursor = db.cursor()
 
     _id = request.args.get("id", default=None, type=int)
     if _id is None:
@@ -288,9 +300,10 @@ def game_solved():
 
     selection = result["selection"]
     selection_data = json.loads(selection[1])
-    result, status = check_solved(selection_data)
+    result = check_solved(selection_data, 1) or check_solved(selection_data, 2)
     if result != selection_data["solved"]:
         selection_data["solved"] = result
         cursor.execute("update game set data = ? where id == ?", (json.dumps(selection_data), str(_id)))
+    db.commit()
     cursor.close()
-    return app_response({"solved": result}, status)
+    return app_response({"solved": result}, 200)
