@@ -1,6 +1,5 @@
 import sys
 import os
-import requests
 import unittest
  
 from tower import create_app, init_db
@@ -34,19 +33,49 @@ class TestGame(unittest.TestCase):
         os.remove(TEST_DB)
 
     def test_new_game_default_values(self):
+        expected = self.default_game
         response = self.app.get("http://127.0.0.1:5000/new")
         self.assertEqual(self.default_game, response.json)
 
-    def test_game_status(self):
         response = self.app.get("http://127.0.0.1:5000/new")
-        response = self.app.get("http://127.0.0.1:5000/state?id=1")
-        board = {"board": self.default_game["board"]}
-        self.assertEqual(board, response.json)
+        expected["id"] += 1
+        self.assertEqual(self.default_game, response.json)
+
+        response = self.app.get("http://127.0.0.1:5000/new")
+        expected["id"] += 1
+        self.assertEqual(self.default_game, response.json)
+
+        response = self.app.get("http://127.0.0.1:5000/new")
+        expected["id"] += 1
+        self.assertEqual(self.default_game, response.json)
+
+    def test_game_state(self):
+        response = self.app.get("http://127.0.0.1:5000/new")
+        response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
+        
+        expected = self.default_game
+        del expected["id"]
+        self.assertEqual(expected, response.json)
+
+    def test_board_state(self):
+        response = self.app.get("http://127.0.0.1:5000/new")
+        response = self.app.get("http://127.0.0.1:5000/board_state?id=1")
+        
+        expected = {"board": self.default_game["board"]}
+        self.assertEqual(expected, response.json)
+
+        response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 1, "dst": 2})
+        response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 1, "dst": 3})
+        response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 2, "dst": 3})
+
+        response = self.app.get("http://127.0.0.1:5000/board_state?id=1")
+        expected = {"board": [[None, None, None], [None, None, None], [3, None, 1], [4, None, 2]]}
+        self.assertEqual(expected, response.json)
 
     def test_delete_game(self):
         response = self.app.get("http://127.0.0.1:5000/new")
         response = self.app.delete("http://127.0.0.1:5000/delete?id=1")
-        response = self.app.get("http://127.0.0.1:5000/state?id=1")
+        response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
         expected = {'error': 'id: 1 does not exist'}
         self.assertEqual(expected, response.json)
 
@@ -55,20 +84,20 @@ class TestGame(unittest.TestCase):
         response = self.app.get("http://127.0.0.1:5000/new")
         response = self.app.get("http://127.0.0.1:5000/new")
         response = self.app.get("http://127.0.0.1:5000/new")
-        response1 = self.app.get("http://127.0.0.1:5000/state?id=1")
-        response2 = self.app.get("http://127.0.0.1:5000/state?id=2")
-        response3 = self.app.get("http://127.0.0.1:5000/state?id=3")
-        response4 = self.app.get("http://127.0.0.1:5000/state?id=4")
+        response1 = self.app.get("http://127.0.0.1:5000/game_state?id=1")
+        response2 = self.app.get("http://127.0.0.1:5000/game_state?id=2")
+        response3 = self.app.get("http://127.0.0.1:5000/game_state?id=3")
+        response4 = self.app.get("http://127.0.0.1:5000/game_state?id=4")
         self.assertEqual(response1.status_code, 200)
         self.assertEqual(response2.status_code, 200)
         self.assertEqual(response3.status_code, 200)
         self.assertEqual(response4.status_code, 200)
         response = self.app.delete("http://127.0.0.1:5000/delete_all")
 
-        response1 = self.app.get("http://127.0.0.1:5000/state?id=1")
-        response2 = self.app.get("http://127.0.0.1:5000/state?id=2")
-        response3 = self.app.get("http://127.0.0.1:5000/state?id=3")
-        response4 = self.app.get("http://127.0.0.1:5000/state?id=4")
+        response1 = self.app.get("http://127.0.0.1:5000/game_state?id=1")
+        response2 = self.app.get("http://127.0.0.1:5000/game_state?id=2")
+        response3 = self.app.get("http://127.0.0.1:5000/game_state?id=3")
+        response4 = self.app.get("http://127.0.0.1:5000/game_state?id=4")
         expected = {'error': 'id: 1 does not exist'}
         self.assertEqual(expected, response1.json)
         expected = {'error': 'id: 2 does not exist'}
@@ -188,10 +217,25 @@ class TestGame(unittest.TestCase):
 
         expected = {"dst": [2, 3, 3, 2, 1, 2, 2], 
                     "src": [1, 1, 2, 1, 3, 3, 1]}
-        self.assertEqual(expected, response.json["move_buffer"]
+        self.assertEqual(expected, response.json["move_buffer"])
+
+        response = self.app.patch("http://127.0.0.1:5000/undo?id=1")
+        response = self.app.patch("http://127.0.0.1:5000/undo?id=1")
+        response = self.app.patch("http://127.0.0.1:5000/undo?id=1")
+
+        expected = {"dst": [2, 3, 3, 2,], 
+                    "src": [1, 1, 2, 1,]}
+        self.assertEqual(expected, response.json["move_buffer"])
+
+        #invalid moves - no change to buffer
+        response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 1, "dst": 2})
+        response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 1, "dst": 2})
+
+        response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
+        self.assertEqual(expected, response.json["move_buffer"])
 
     def test_invalid_id_state(self):
-        response = self.app.get("http://127.0.0.1:5000/state?id=1")
+        response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
         expected = {"error": "id: 1 does not exist"}
         self.assertEqual(expected, response.json)
 
@@ -240,8 +284,8 @@ class TestGame(unittest.TestCase):
         self.assertNotEqual(self.solution_third, response.json["board"])
 
         response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 2, "dst": 3})
-
         self.assertEqual(self.solution_third, response.json["board"])
+        self.assertTrue(response.json["solved"])
 
     def test_solved_second_pillar(self):
         response = self.app.get("ttp://127.0.0.1:5000/new")
@@ -265,32 +309,8 @@ class TestGame(unittest.TestCase):
         self.assertNotEqual(self.solution_second, response.json["board"])
         response = self.app.patch("http://127.0.0.1:5000/move", json={"id": 1, "src": 3, "dst": 2})
         self.assertEqual(self.solution_second, response.json["board"])
-
-
+        self.assertTrue(response.json["solved"])
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-#def game_new():
-#def game_state():
-#def game_delete():
-#def game_delete_all():
-#def game_move():
-#def game_undo():
-#def game_reset():
-#def game_solved():
-
-#def get_db():
-#def get_src_pos(board, src_col_index):
-#def get_dst_pos(board, dst_col_index):
-#def valid_move(board, src_pos, dst_pos):
-#def perform_move(data, src_col_index, dst_col_index, increment):
-#def check_solved(data):
-#def get_selection(cursor, _id):
-#def app_response(res, status):
-#def get_default_board_state():
-#def undo(selection_data):
-#def valid_data(_id, src, dst):
-

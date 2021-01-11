@@ -30,8 +30,11 @@ def valid_move(board, src_pos, dst_pos):
     if None in src_pos or None in dst_pos:
         return False
     if dst_pos[1] < 3:
-        result = board[dst_pos[1] + 1][dst_pos[0]] > board[src_pos[1]][src_pos[0]]
-        return result
+        dst_value = board[dst_pos[1] + 1][dst_pos[0]] 
+        src_value = board[src_pos[1]][src_pos[0]]
+        if dst_value is None or src_value is None:
+            return False
+        return dst_value > src_value
     return True
 
 def perform_move(data, src_col_index, dst_col_index, increment):
@@ -146,11 +149,35 @@ def game_reset():
 
 
 # returns the state of an existing game
-@bp.route("/state", methods=["GET"])
+@bp.route("/game_state", methods=["GET"])
 def game_state():
     db = get_db()
     cursor = db.cursor()
     _id = request.args.get("id", default=None, type=int)
+
+    if _id is None:
+        res = {"error": "must have parameter id with integer value"}
+        return app_response(res, 400)
+
+    result = get_selection(cursor, _id)
+    if result["error"] is not None:
+        res = {"error": result["error"]}
+        return app_response(res, 400)
+
+    selection = result["selection"]
+    selection_data = json.loads(selection[1])
+    del selection_data["id"]
+
+    cursor.close()
+    return app_response(selection_data, 200)
+
+# returns the state of an existing game
+@bp.route("/board_state", methods=["GET"])
+def game_board_state():
+    db = get_db()
+    cursor = db.cursor()
+    _id = request.args.get("id", default=None, type=int)
+
     if _id is None:
         res = {"error": "must have parameter id with integer value"}
         return app_response(res, 400)
@@ -166,7 +193,6 @@ def game_state():
 
     cursor.close()
     return app_response(result, 200)
-
 
 # deletes an existing game
 @bp.route("/delete", methods=["DELETE"])
@@ -236,14 +262,16 @@ def game_move():
     selection_data["id"] = selection[0]
     selection_data["move_buffer"]["src"].append(src)
     selection_data["move_buffer"]["dst"].append(dst)
-    if check_solved(selection_data, 1) or check_solved(selection_data, 2):
-        selection_data["solved"] = True
 
     result = perform_move(selection_data, src, dst, 1)
     if not result:
         cursor.close()
         res = {"error": "invalid move", "src": src, "dst": dst}
         return app_response(res, 400)
+
+    result = check_solved(selection_data, 1) or check_solved(selection_data, 2)
+    if result != selection_data["solved"]:
+        selection_data["solved"] = result
 
     cursor.execute("update game set data = ? where id == ?", (json.dumps(selection_data), str(_id)))
     db.commit()
