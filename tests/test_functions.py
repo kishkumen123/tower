@@ -1,23 +1,38 @@
 import os
 import unittest
- 
+
 from tower import game
 from tower import create_app, init_db
- 
- 
+
+
 class TestGame(unittest.TestCase):
-
-
     def setUp(self):
-        self.default_game = data = {"id": 1,
-                                    "solved": False,
-                                    "move_buffer": {"src": [], "dst": []},
-                                    "move_buffer_size": 0,
-                                    "total_move_count": 0,
-                                    "valid_move_count": 0,
-                                    "board": [[1, None, None], [2, None, None], [3, None, None], [4, None, None]]}
-        self.solution_third = [[None, None, 1], [None, None, 2], [None, None, 3], [None, None, 4]]
-        self.solution_second = [[None, 1, None], [None, 2, None], [None, 3, None], [None, 4, None]]
+        self.default_game = data = {
+            "id": 1,
+            "solved": False,
+            "move_buffer": {"src": [], "dst": []},
+            "move_buffer_size": 0,
+            "total_move_count": 0,
+            "valid_move_count": 0,
+            "board": [
+                [1, None, None],
+                [2, None, None],
+                [3, None, None],
+                [4, None, None],
+            ],
+        }
+        self.solution_third = [
+            [None, None, 1],
+            [None, None, 2],
+            [None, None, 3],
+            [None, None, 4],
+        ]
+        self.solution_second = [
+            [None, 1, None],
+            [None, 2, None],
+            [None, 3, None],
+            [None, 4, None],
+        ]
 
     def test_valid_data_true(self):
         result = game.valid_data(1, 1, 1)
@@ -35,13 +50,20 @@ class TestGame(unittest.TestCase):
 
     def test_get_default_board_state(self):
         result = game.get_default_board_state()
-        board = {"id": None,
-                "solved": False,
-                "move_buffer": {"src": [], "dst": []},
-                "move_buffer_size": 0,
-                "total_move_count": 0,
-                "valid_move_count": 0,
-                "board": [[1, None, None], [2, None, None], [3, None, None], [4, None, None]]}
+        board = {
+            "id": None,
+            "solved": False,
+            "move_buffer": {"src": [], "dst": []},
+            "move_buffer_size": 0,
+            "total_move_count": 0,
+            "valid_move_count": 0,
+            "board": [
+                [1, None, None],
+                [2, None, None],
+                [3, None, None],
+                [4, None, None],
+            ],
+        }
 
         self.assertEqual(board, result)
 

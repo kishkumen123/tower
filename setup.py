@@ -1,12 +1,12 @@
 from setuptools import setup
 
 setup(
-    name='tower',
-    packages=['tower'],
+    name="tower",
+    packages=["tower"],
     include_package_data=True,
     install_requires=[
-        'flask',
-        'requests',
-        'coverage',
+        "flask",
+        "requests",
+        "coverage"
     ],
 )

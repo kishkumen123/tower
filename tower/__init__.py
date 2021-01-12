@@ -1,11 +1,18 @@
 import sqlite3
 from flask import Flask, g
 from . import game
-from .db import init_db
 
-class Config():
+
+class Config:
     DATABASE = "database.db"
     TESTING = False
+
+
+def init_db(database):
+    db = getattr(g, "_database", None)
+    if db is None:
+        db = g._database = sqlite3.connect(database, isolation_level=None)
+    return db
 
 
 def create_app(config=None):
@@ -20,6 +27,8 @@ def create_app(config=None):
     with app.app_context():
         db = init_db(app.config["DATABASE"])
         cursor = db.cursor()
-        cursor.execute("create table if not exists game (id integer primary key autoincrement, data json)")
+        cursor.execute(
+            "create table if not exists game (id integer primary key autoincrement, data json)"
+        )
 
-    return app 
+    return app
