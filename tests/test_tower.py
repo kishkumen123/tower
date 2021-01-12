@@ -74,6 +74,11 @@ class TestGame(unittest.TestCase):
 
     def test_delete_game(self):
         response = self.app.get("http://127.0.0.1:5000/new")
+        response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
+        expected = self.default_game
+        del expected["id"]
+        self.assertEqual(expected, response.json)
+
         response = self.app.delete("http://127.0.0.1:5000/delete?id=1")
         response = self.app.get("http://127.0.0.1:5000/game_state?id=1")
         expected = {'error': 'id: 1 does not exist'}

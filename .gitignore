@@ -12,7 +12,7 @@ htmlcov/
 dist/
 build/
 *.egg-info/<S-Del>
-database.db
 
 database.db
+test_database.db
 tower.egg-info/
