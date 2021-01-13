@@ -57,7 +57,5 @@ Examples Directory:
 
     local_example.py - Demonstrates a LOCAL implementation of the game 
                        excluding the usage of a REST API
-    local_example.py - Demonstrates a REMOTE implementation of the game
+    remove_example.py - Demonstrates a REMOTE implementation of the game
                        including the usage of a REST API 
-
-list anything additional beyond the requirements: not yet done
