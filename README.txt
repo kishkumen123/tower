@@ -21,32 +21,57 @@ Testing:
 
 Available Routes:
 ----------------
-route("/new", methods=["GET"]) - Adds a new game to the sqlite database and returns it back as a response.
-    expected data: None
+/new
+    Description: Adds a new game to the sqlite database and returns it back as a response
+    Accepted methods: GET
+    Paramters: None
 
-route("/reset", methods=["PATCH"]) - Resets an existing games state to its default state.
-    expected data: Param id: Integer
+/reset
+    Description: Resets an existing games state to its default state
+    Accepted methods: PATCH
+    Paramters: 
+        id: integer - ID of game in progress
 
-route("/game_state", methods=["GET"]) - Gets information related to the state of the game.
-    expected data: Param id: Integer
+/game_state
+    Description: Gets information related to the state of the game
+    Accepted methods: GET
+    Paramters: 
+        id: integer - ID of game in progress
 
-route("/board_state", methods=["GET"]) - Gets the state of the board for any game.
-    expected data: Param id: Integer
+/board_state
+    Description: Gets the state of the board for any game
+    Accepted methods: GET
+    Paramters: 
+        id: integer - ID of game in progress
 
-route("/delete", methods=["DELETE"]) - Deletes an game from the database.
-    expected data: Param id: Integer
+/delete
+    Description: Deletes an game from the database
+    Accepted methods: DELETE
+    Paramters: 
+        id: integer - ID of game in progress
 
-route("/delete_all", methods=["DELETE"]) - Deletes all games from the database.
-    expected data: None
+/delete_all
+    Description: Deletes all games from the database
+    Accepted methods: DELETE
+    Paramters: None
 
-route("/move", methods=["PATCH"]) - Performs a move (if valid) by id, from src to dst.
-    expected data: Json {"id": Integer, "src": Integer Range(1-3), "dst": Integer Range(1-3)}
+/move
+    Description: Performs a move (if valid) by id, from src to dst
+    Accepted methods: PATCH
+    Paramters: 
+        Json: {"id": integer, "src": integer range(1-3), "dst": integer range(1-3)}
 
-route("/undo", methods=["PATCH"]) - Undo perviously performed moves, in order.
-    expected data: Param id: Integer
+/undo
+    Description: Undo perviously performed moves, in order
+    Accepted methods: PATCH
+    Paramters: 
+        id: integer - ID of game in progress
 
-route("/solved", methods=["GET"]) - Gets a response determining whether the game was solved or not.
-    expected data: Param id: Integer
+/solved
+    Description: Gets a response determining whether the game was solved or not
+    Accepted methods: GET
+    Paramters: 
+        id: integer - ID of game in progress
 
 
 Examples Directory:
